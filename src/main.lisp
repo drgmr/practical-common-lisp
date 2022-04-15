@@ -68,3 +68,45 @@
 
 (defmacro where (&rest clauses)
   `#'(lambda (cd) (and ,@(make-comparison-list clauses))))
+
+(defpackage testing-framework
+  (:use :cl))
+(in-package testing-framework)
+
+(defvar *test-name* nil)
+
+(defun report-result (result form)
+  (format t "~:[FAIL~;pass~] ... ~a: ~a~%" result *test-name* form)
+  result)
+
+(defmacro combine-results (&body forms)
+  (let ((result (gensym)))
+    `(let ((,result t))
+       ,@(loop for f in forms collect `(unless ,f (setf ,result nil)))
+       ,result)))
+
+(defmacro check (&body forms)
+  `(combine-results
+     ,@(loop for f in forms collect `(report-result ,f ',f))))
+
+(defmacro deftest (name parameters &body body)
+  `(defun ,name ,parameters
+     (let ((*test-name* (append *test-name* (list ',name))))
+       ,@body)))
+
+(deftest test-+ ()
+  (check
+    (= (+ 1 2) 3)
+    (= (+ 1 2 3) 6)
+    (= (+ -1 -3) -4)))
+
+(deftest test-* ()
+  (check
+    (= (* 1 2) 2)
+    (= (* 3 4) 12)
+    (= (* -1 -2) 2)))
+
+(deftest test-arith ()
+  (combine-results
+    (test-+)
+    (test-*)))
